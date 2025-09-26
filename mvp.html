@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaseBrief AI - MVP</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <h1>CaseBrief AI MVP</h1>
+    <input type="file" id="pdfUpload" accept=".pdf">
+    <button id="processBtn" disabled>Process Document</button>
+    <div id="progress"></div>
+    <textarea id="briefDisplay" rows="20" cols="80" placeholder="Generated brief will appear here..."></textarea>
+    <button id="exportBtn" style="display: none;">Download as .docx</button>
+
+    <script>
+        // Set pdf.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const API_KEY = 'YOUR_GEMINI_API_KEY'; // User must replace with actual key from Google AI Studio
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const pdfUpload = document.getElementById('pdfUpload');
+            const processBtn = document.getElementById('processBtn');
+            const progress = document.getElementById('progress');
+            const briefDisplay = document.getElementById('briefDisplay');
+            const exportBtn = document.getElementById('exportBtn');
+
+            let selectedFile = null;
+
+            pdfUpload.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (!file) {
+                    processBtn.disabled = true;
+                    selectedFile = null;
+                    return;
+                }
+                if (file.type !== 'application/pdf') {
+                    alert('Please select a PDF file.');
+                    pdfUpload.value = '';
+                    return;
+                }
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('File too large. Maximum size is 10MB.');
+                    pdfUpload.value = '';
+                    return;
+                }
+                selectedFile = file;
+                processBtn.disabled = false;
+            });
+
+            processBtn.addEventListener('click', async function() {
+                if (!selectedFile) return;
+
+                progress.textContent = 'Extracting text...';
+                processBtn.disabled = true;
+
+                try {
+                    const url = URL.createObjectURL(selectedFile);
+                    const pdf = await pdfjsLib.getDocument(url).promise;
+                    let fullText = '';
+
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map(item => item.str).join(' ');
+                        fullText += pageText + '\n';
+                    }
+
+                    URL.revokeObjectURL(url);
+
+                    if (fullText.length < 100) {
+                        alert("Low text detected; OCR fallback recommended in production.");
+                    }
+
+                    if (fullText.trim() === '') {
+                        briefDisplay.value = 'Unable to extract text.';
+                        exportBtn.style.display = 'none';
+                        processBtn.disabled = false;
+                        return;
+                    }
+
+                    progress.textContent = 'Running AI analysis...';
+
+                    const finalBrief = await runAiAnalysis(fullText);
+
+                    briefDisplay.value = finalBrief;
+                    exportBtn.style.display = 'inline-block';
+                    progress.textContent = '';
+
+                } catch (error) {
+                    console.error(error);
+                    progress.textContent = '';
+                    alert('Error processing PDF: ' + error.message);
+                } finally {
+                    processBtn.disabled = false;
+                }
+            });
+
+            exportBtn.addEventListener('click', function() {
+                const brief = briefDisplay.value;
+                if (!brief) return;
+
+                // Simple parsing: split by major headings (assuming output has 'Facts:', 'Issues:', etc.)
+                const sections = brief.split(/(\n[A-Z][a-z]+:)/).filter(s => s.trim());
+                const doc = new docx.Document({
+                    sections: [{
+                        children: [
+                            new docx.Paragraph({
+                                children: [new docx.TextRun({ text: 'Case Brief', bold: true, size: 24 })]
+                            })
+                        ]
+                    }]
+                });
+
+                let currentSection = null;
+                for (let i = 0; i < sections.length; i++) {
+                    const part = sections[i].trim();
+                    if (part.match(/^[A-Z][a-z]+:$/)) {
+                        // Heading
+                        currentSection = part.slice(0, -1); // Remove colon
+                        doc.addSection({
+                            children: [
+                                new docx.Paragraph({
+                                    children: [new docx.TextRun({ text: currentSection, bold: true, size: 14 })],
+                                    spacing: { after: 200 }
+                                })
+                            ]
+                        });
+                    } else if (currentSection) {
+                        // Body text
+                        doc.addSection({
+                            children: [
+                                new docx.Paragraph({
+                                    children: [new docx.TextRun({ text: part })],
+                                    spacing: { after: 100 }
+                                })
+                            ]
+                        });
+                    }
+                }
+
+                docx.Packer.toBlob(doc).then(blob => {
+                    saveAs(blob, 'case_brief.docx');
+                }).catch(error => {
+                    alert('Error generating DOCX: ' + error.message);
+                });
+            });
+
+            async function runAiAnalysis(fullText) {
+                try {
+                    // Pass 1: Extract Facts
+                    const factsPrompt = `Extract key facts from this legal document: ${fullText}. Output as bullet points under 'Facts:'`;
+                    let facts = '';
+                    try {
+                        const factsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${API_KEY}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: factsPrompt }] }]
+                            })
+                        });
+                        if (!factsRes.ok) throw new Error(`HTTP ${factsRes.status}`);
+                        const factsData = await factsRes.json();
+                        facts = factsData.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error('Facts extraction error:', error);
+                        facts = 'Facts could not be extracted due to API error.';
+                    }
+
+                    // Pass 2: Legal Analysis
+                    const analysisPrompt = `Based on facts: ${facts} and full text: ${fullText}, provide legal analysis with sections: Issues, Holding, Reasoning.`;
+                    let analysis = '';
+                    try {
+                        const analysisRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${API_KEY}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: analysisPrompt }] }]
+                            })
+                        });
+                        if (!analysisRes.ok) throw new Error(`HTTP ${analysisRes.status}`);
+                        const analysisData = await analysisRes.json();
+                        analysis = analysisData.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error('Analysis error:', error);
+                        analysis = 'Legal analysis could not be generated due to API error.';
+                    }
+
+                    // Pass 3: Synthesis
+                    const synthesisPrompt = `Synthesize into full case brief: Facts: ${facts}, Analysis: ${analysis}, Full text: ${fullText}. Structure with headings: Facts, Procedural History (infer if needed), Issues, Holding, Reasoning, Conclusion.`;
+                    const synthesisRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${API_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: synthesisPrompt }] }]
+                        })
+                    });
+                    if (!synthesisRes.ok) throw new Error(`HTTP ${synthesisRes.status}`);
+                    const synthesisData = await synthesisRes.json();
+                    const finalBrief = synthesisData.candidates[0].content.parts[0].text;
+
+                    return finalBrief;
+
+                } catch (error) {
+                    console.error('AI analysis error:', error);
+                    alert('API error, check key/rate limits: ' + error.message);
+                    return 'Error generating brief due to API failure.';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

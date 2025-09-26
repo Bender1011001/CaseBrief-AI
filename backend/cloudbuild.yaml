@@ -1,0 +1,9 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/casebrief-backend', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/casebrief-backend']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: ['run', 'deploy', 'casebrief-backend', '--image', 'gcr.io/$PROJECT_ID/casebrief-backend', '--platform', 'managed', '--region', 'us-central1', '--allow-unauthenticated', '--set-env-vars', 'GOOGLE_APPLICATION_CREDENTIALS=/secrets/service-account.json']
+images: ['gcr.io/$PROJECT_ID/casebrief-backend']
