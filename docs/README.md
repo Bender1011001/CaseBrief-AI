@@ -82,8 +82,8 @@ For detailed setup, testing, and deployment, refer to the respective documentati
 - **Database & Storage**: Firestore (real-time NoSQL database for user documents and briefs), Cloud Storage (PDF uploads and temporary OCR files).
 - **Authentication**: Firebase Authentication (email/password).
 - **AI/ML Services**: Google Cloud Vision API (OCR for scanned PDFs), Vertex AI (Gemini 1.5 Pro for multi-pass brief generation).
-- **Deployment & CI/CD**: Docker (containerization), Google Cloud Run (backend hosting), Firebase Hosting (frontend), Cloud Build (CI via `cloudbuild.yaml`).
+- **Deployment & CI/CD**: Docker (containerization), Google Cloud Run (backend hosting), Firebase Hosting (frontend), Cloud Build (CI via `cloudbuild.yaml`), Jest/pytest for testing.
 
 ## License
 
-MIT License. Copyright (c) 2025 CaseBrief AI Contributors. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files...
+MIT License. See LICENSE for full text.

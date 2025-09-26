@@ -20,7 +20,7 @@
         // Set pdf.js worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        const API_KEY = 'YOUR_GEMINI_API_KEY'; // User must replace with actual key from Google AI Studio
+        // const API_KEY = 'YOUR_GEMINI_API_KEY'; // MVP only: Replace with actual key for dev. For production, proxy through backend to secure API key.
 
         document.addEventListener('DOMContentLoaded', function() {
             const pdfUpload = document.getElementById('pdfUpload');

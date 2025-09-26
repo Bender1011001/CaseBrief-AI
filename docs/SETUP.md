@@ -75,13 +75,13 @@ Deploy rules via Firebase Console or CLI.
      ```
      set GOOGLE_APPLICATION_CREDENTIALS=path\to\casebrief-ai-service-account.json
      ```
-     On Unix-like systems: `export GOOGLE_APPLICATION_CREDENTIALS=path/to/casebrief-ai-service-account.json`.
+     On Unix-like systems: `export GOOGLE_APPLICATION_CREDENTIALS=path/to/casebrief-ai-service-account.json`. On Windows: `set GOOGLE_APPLICATION_CREDENTIALS=path\to\casebrief-ai-service-account.json`.
 
 5. Run the development server:
    ```
    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
    ```
-   The API will be available at http://localhost:8000. Access interactive docs at http://localhost:8000/docs (Swagger) or http://localhost:8000/redoc.
+   The API will be available at http://localhost:8000. Access interactive docs at http://localhost:8000/docs (Swagger) or http://localhost:8000/redoc. Verify: curl http://localhost:8000/health (should return {"status": "healthy"}).
 
 Troubleshoot: If you encounter authentication errors, verify the service account roles and PROJECT_ID in `.env`.
 
@@ -102,15 +102,18 @@ Troubleshoot: If you encounter authentication errors, verify the service account
    - Go to the Firebase Console (https://console.firebase.google.com/), select your project.
    - In Project Settings > General > Your apps, add a Web app if not already done.
    - Copy the config object (apiKey, authDomain, projectId, etc.).
-   - Update [`src/firebase.js`](../frontend/src/firebase.js) with this config:
-     ```javascript
-     const firebaseConfig = {
-       apiKey: "your-api-key",
-       authDomain: "your-project.firebaseapp.com",
-       projectId: "your-gcp-project-id",
-       // ... other fields
-     };
+   - Create a `.env` file in the frontend root:
      ```
+     REACT_APP_API_BASE=http://localhost:8000
+     REACT_APP_FIREBASE_API_KEY=your_api_key_here
+     REACT_APP_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+     REACT_APP_FIREBASE_PROJECT_ID=your-gcp-project-id
+     REACT_APP_FIREBASE_STORAGE_BUCKET=your-storage.appspot.com
+     REACT_APP_FIREBASE_MESSAGING_SENDER_ID=123456789
+     REACT_APP_FIREBASE_APP_ID=1:123456789:web:abcdef123456
+     ```
+     Replace with actual values from Firebase console. Do not commit `.env` to version control (add to .gitignore).
+   - The config in [`src/firebase.js`](../frontend/src/firebase.js) loads from these env vars automatically.
    - Enable Authentication: Go to Authentication > Sign-in method > Enable Email/Password.
    - Set Firestore rules as mentioned above to allow authenticated user access.
 
@@ -126,4 +129,4 @@ Troubleshoot: If you encounter authentication errors, verify the service account
 - **Production**: After deployment, update the `API_BASE` constant in `src/api.js` to the Cloud Run service URL (e.g., `https://casebrief-backend-abc123-uc.a.run.app`).
 - For local testing with production-like setup, use ngrok or similar to expose localhost:8000 publicly and update the frontend accordingly.
 
-Once both servers are running, you can authenticate, upload a PDF, and see real-time updates. For full testing, refer to [TESTING.md](TESTING.md).
+Once both servers are running, you can authenticate, upload a PDF, and see real-time updates. Verify backend: curl -H "Authorization: Bearer your-token" http://localhost:8000/v1/process/document -F "file=@test.pdf". For full testing, refer to [TESTING.md](docs/TESTING.md).

@@ -1,8 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import tempfile
 import uuid
+import logging
+import json
+import re
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 import firebase_admin
@@ -18,6 +22,9 @@ from io import BytesIO
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     project_id: str = os.getenv("PROJECT_ID")
@@ -58,8 +65,17 @@ async def generate_content(prompt):
 
 app = FastAPI(title="CaseBrief AI Backend")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "https://casebrief-ai-prod.web.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.post("/v1/process/document")
 async def process_document(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
+    logger.info(f"Processing document for user {user_id}")
     if not file.filename.endswith('.pdf'):
         raise HTTPException(400, "Only PDF files allowed")
     if file.size > 10 * 1024 * 1024:
@@ -78,10 +94,12 @@ async def process_document(file: UploadFile = File(...), user_id: str = Depends(
             full_text += page.get_text() + "\n"
     os.unlink(temp_path)
     if len(full_text.strip()) < 500:
+        logger.info(f"Low text detected, using OCR for {doc_id}")
         # OCR fallback: Upload to temp storage, annotate
         temp_blob_name = f"temp/{doc_id}.pdf"
-        blob = storage_client.bucket(bucket_name).blob(temp_blob_name)
-        blob.upload_from_string(content, content_type="application/pdf")
+        input_blob = storage_client.bucket(bucket_name).blob(temp_blob_name)
+        input_blob.upload_from_string(content, content_type="application/pdf")
+        output_uri = f"gs://{bucket_name}/temp/{doc_id}_ocr/"
         request = vision.BatchAnnotateFilesRequest(
             requests=[
                 vision.AnnotateFileRequest(
@@ -91,16 +109,42 @@ async def process_document(file: UploadFile = File(...), user_id: str = Depends(
                     ),
                     features=[vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)],
                     output_config=vision.OutputConfig(
-                        gcs_destination=vision.GcsDestination(uri=f"gs://{bucket_name}/temp/{doc_id}_ocr/"),
+                        gcs_destination=vision.GcsDestination(uri=output_uri),
                         batch_size=1
                     )
                 )
             ]
         )
-        response = vision_client.batch_annotate_files(requests=[request])
-        # Parse OCR text from output (simplified: assume full_text = extract from response[0].responses[0].full_text_annotation.text)
-        full_text = "OCR extracted text placeholder"  # In real: implement parsing
-        blob.delete()  # Cleanup
+        operation = vision_client.batch_annotate_files(request)
+        # Wait for operation (simplified; in prod, poll)
+        import time
+        while not operation.done():
+            time.sleep(5)
+            operation = vision_client.transport.operations_client.get_operation(operation.name)
+        # Download output JSON
+        output_blob_name = f"temp/{doc_id}_ocr/output-1-to-1.json"
+        output_blob = storage_client.bucket(bucket_name).blob(output_blob_name)
+        if output_blob.exists():
+            output_content = output_blob.download_as_text()
+            data = json.loads(output_content)
+            responses = data.get('responses', [])
+            full_text = ""
+            for resp in responses:
+                annotation = resp.get('fullTextAnnotation', {})
+                full_text += annotation.get('text', '') + "\n"
+            if not full_text.strip():
+                logger.warning(f"No text extracted via OCR for {doc_id}")
+                full_text = "No text could be extracted from the document."
+        else:
+            logger.error(f"OCR output not found for {doc_id}")
+            full_text = "OCR processing failed."
+        # Cleanup blobs
+        input_blob.delete()
+        if output_blob.exists():
+            output_blob.delete()
+        # Cleanup output dir if needed (recursive delete via gsutil or list/delete)
+    else:
+        logger.info(f"Text extracted via PyMuPDF for {doc_id}")
     # Upload PDF to Storage
     blob = storage_client.bucket(bucket_name).blob(f"{user_id}/{doc_id}.pdf")
     blob.upload_from_string(content, content_type="application/pdf")
@@ -122,24 +166,26 @@ async def process_document(file: UploadFile = File(...), user_id: str = Depends(
 
 @app.get("/v1/export/{doc_id}")
 async def export_brief(doc_id: str, user_id: str = Depends(get_current_user)):
+    logger.info(f"Exporting brief {doc_id} for user {user_id}")
     doc_ref = db.collection("users").document(user_id).collection("documents").document(doc_id)
     doc = doc_ref.get()
     if not doc.exists:
+        logger.warning(f"Document {doc_id} not found for user {user_id}")
         raise HTTPException(404, "Document not found")
     data = doc.to_dict()
     if data["status"] != "completed":
         raise HTTPException(400, "Document not ready")
     brief = data["brief"]
-    # Parse sections (simple split by headings)
+    # Parse sections with regex for robust extraction
     headings = ["Facts", "Procedural History", "Issues", "Holding", "Reasoning", "Conclusion"]
-    sections = {heading: "" for heading in headings}
-    for i, heading in enumerate(headings):
-        start = brief.find(heading)
-        if start != -1:
-            end = brief.find(headings[i+1] if i+1 < len(headings) else "\n\n\n", start)
-            if end == -1:
-                end = len(brief)
-            sections[heading] = brief[start:end].strip()
+    pattern = r'(Facts|Procedural History|Issues|Holding|Reasoning|Conclusion):\s*(.*?)(?=\n[A-Z][a-z]+:|\Z)'
+    matches = re.findall(pattern, brief, re.DOTALL | re.IGNORECASE)
+    sections = {match[0].title(): match[1].strip() for match in matches}
+    # Fill missing sections with empty
+    for heading in headings:
+        if heading not in sections:
+            sections[heading] = ""
+            logger.warning(f"Missing section '{heading}' in brief {doc_id}")
     # Generate docx
     docx_doc = Document()
     for heading, content in sections.items():
@@ -159,4 +205,5 @@ async def export_brief(doc_id: str, user_id: str = Depends(get_current_user)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    reload = os.getenv("ENV", "dev") == "dev"
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=reload)

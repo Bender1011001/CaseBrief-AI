@@ -113,8 +113,8 @@ Prioritize based on community feedback. See open issues labeled `enhancement` fo
 
 ## License and Attribution
 
-All contributions are under the MIT License (see [LICENSE](../LICENSE) or add if missing). By contributing, you agree your work is licensed accordingly. Attribute original authors in commits.
+All contributions are under the MIT License (see [LICENSE](../LICENSE)). By contributing, you agree your work is licensed accordingly. Attribute original authors in commits.
 
 We appreciate your help in making CaseBrief AI better—let's build secure, scalable legal AI tools together!
 
-For questions, contact maintainers via GitHub or email (add contact in repo).
+For questions, contact maintainers via GitHub issues.

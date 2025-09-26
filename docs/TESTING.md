@@ -38,7 +38,7 @@ Backend tests are located in [`tests/test_main.py`](../backend/tests/test_main.p
 - **Authentication**: Tests dependency injection; 401 on invalid tokens, successful uid extraction.
 - **Error Cases**: OCR quota exceeded, AI timeout, unauthorized access to foreign docId.
 
-Example test snippet (from `test_main.py`):
+Example test snippet (from `test_main.py`): Updated for inline logic and async mocks.
 ```python
 import pytest
 from unittest.mock import patch, MagicMock
@@ -115,7 +115,7 @@ test('handles login success', async () => {
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
   
   await waitFor(() => expect(signInWithEmailAndPassword).toHaveBeenCalledWith(auth, 'test@example.com', 'password'));
-  // Assert redirect or state change
+  expect(useAuthStore).toHaveBeenCalled(); // Assert state update
 });
 ```
 
@@ -160,17 +160,17 @@ Common checks: No console errors, correct HTTP statuses, Firestore data integrit
 
 - **Backend**:
   ```
-  pip install pytest-cov
+  pip install pytest-cov  # Added to dev deps
   pytest --cov=backend tests/ --cov-report=html
   ```
   Opens `htmlcov/index.html` with line-by-line coverage.
 
 - **Frontend**:
   ```
-  npm test -- --coverage --watchAll=false
+  npm test -- --coverage --watchAll=false  # Enforced in CI for >80%
   ```
   Generates `coverage/lcov-report/index.html`; aim for high component coverage.
 
 Run coverage before PRs. If coverage drops below 80%, investigate. For security testing, use tools like Bandit (Python) or ESLint security plugin (JS), though not automated here.
 
-This testing suite ensures the MVP is robust; expand with E2E and load tests for production.
+This testing suite ensures the MVP is robust; expand with E2E (Cypress setup: npm install cypress, cypress open for browser automation of login/upload/export flows) and load tests for production.

@@ -14,19 +14,23 @@ export const processDocument = async (token, file) => {
 };
 
 export const exportDoc = async (token, docId) => {
-  const response = await axios.get(`${API_BASE}/export/${docId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    },
-    responseType: 'blob'
-  });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', `brief_${docId}.docx`);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  try {
+    const response = await axios.get(`${API_BASE}/export/${docId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      responseType: 'blob'
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `brief_${docId}.docx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (error) {
+    alert('Export failed: ' + error.message);
+  }
 };
 
 export const getIdToken = async (user) => (await user.getIdToken());

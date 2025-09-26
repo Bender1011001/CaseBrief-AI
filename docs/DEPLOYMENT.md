@@ -1,5 +1,7 @@
 # Deployment
 
+Assumes Firebase project 'casebrief-ai-prod'; for custom, update firebase.json and .firebaserc.
+
 CaseBrief AI is designed for serverless deployment on Google Cloud Platform, leveraging Cloud Run for the scalable backend and Firebase Hosting for the static frontend. This setup ensures automatic scaling, HTTPS by default, and integrated monitoring. Deployment scripts are provided for convenience: [`backend/deploy.sh`](../backend/deploy.sh) for the backend and [`frontend/deploy.sh`](../frontend/deploy.sh) for the frontend. CI/CD can be automated via Cloud Build using [`backend/cloudbuild.yaml`](../backend/cloudbuild.yaml).
 
 Prerequisites: GCP project with billing enabled, APIs activated (Cloud Run, Firebase Hosting, Artifact Registry if using custom images), and service account with necessary roles (Cloud Run Admin, Firebase Admin). Follow [SETUP.md](SETUP.md) for initial configuration. Install the gcloud CLI and Firebase CLI.
@@ -38,7 +40,7 @@ The backend is containerized with Docker and deployed to Cloud Run, which handle
      --set-secrets GOOGLE_APPLICATION_CREDENTIALS=sa-key:latest
    ```
    - `--allow-unauthenticated`: For MVP; restrict to authenticated in production via IAM.
-   - `--set-secrets`: Mounts the service account JSON as a secret (create secret first: `echo -n "$(cat service-account.json)" | gcloud secrets create sa-key --data-file=-`).
+   - `--set-secrets`: Mounts the service account JSON as a secret (create secret first: `gcloud secrets create sa-key --data-file=service-account.json`).
    - Outputs the service URL (e.g., https://casebrief-backend-abc123-uc.a.run.app).
 
 4. Using the Provided Script:
@@ -97,11 +99,7 @@ The frontend is a static React build deployed to Firebase Hosting, which provide
 
 ### Post-Deployment Configuration
 
-- **API URL Update**: Before building, set `API_BASE` in [`src/api.js`](../frontend/src/api.js) to the Cloud Run URL:
-  ```javascript
-  const API_BASE = 'https://casebrief-backend-abc123-uc.a.run.app';
-  ```
-  Rebuild and redeploy.
+- **API URL Update**: Set REACT_APP_API_BASE env var to the Cloud Run URL before building (e.g., export REACT_APP_API_BASE=https://casebrief-backend-abc123-uc.a.run.app/v1); loaded in api.js. Rebuild and redeploy.
 - **Custom Domain**: In Firebase Console > Hosting, add domain (e.g., casebrief.ai) and verify DNS.
 - **Firebase Config**: Ensure `firebase.json` and `.firebaserc` match your project (provided in repo).
 - **Rewrites**: `firebase.json` includes rewrites for SPA routing: all paths to `/index.html`.
@@ -143,7 +141,7 @@ Automate deployments with Cloud Build, triggered on Git push to main.
   ```
   Trigger: Connect GitHub repo in Cloud Build > Triggers; push to main builds/deploys.
 
-- **Frontend CI**: Use GitHub Actions or Firebase's integration. Example workflow in `.github/workflows/deploy.yml` (add if needed):
+- **Frontend CI**: Use GitHub Actions or Firebase's integration. Example workflow in `.github/workflows/deploy.yml` (add if needed). For secrets, generate Firebase token: firebase login:ci, add FIREBASE_TOKEN to GitHub repo secrets.
   ```yaml
   name: Deploy Frontend
   on: [push]

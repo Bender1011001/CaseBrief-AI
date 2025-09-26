@@ -58,7 +58,7 @@ Example UI flow: Login → Dashboard (upload PDF) → Processing indicator → E
 As an MVP, CaseBrief AI prioritizes core functionality; some advanced features are planned for future versions.
 
 - **No PDF Preview**: Uploaded files aren't viewable in the UI; upload blindly and trust the processing. Tip: Use descriptive titles.
-- **Local Edits Only**: Changes in the Editor aren't saved to the server; export captures the current state. For persistence, copy-paste or re-upload edited versions (V2 will add save).
+- **Local Edits Only**: Changes in the Editor can be saved to Firestore via Save button; export captures current state. V2 will add advanced persistence.
 - **Development API Exposure**: In local dev, API calls go directly to localhost; production proxies through backend for security. Always use deployed URLs.
 - **Gemini Rate Limits**: GCP quotas apply (e.g., 60 queries/minute for Vertex AI). High-volume users may hit limits; monitor in GCP Console and request increases.
 - **File Size/Format**: Strictly PDFs <10MB; larger files fail. For multi-page cases, split if needed.

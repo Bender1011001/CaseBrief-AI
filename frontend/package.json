@@ -12,10 +12,14 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "test": "react-scripts test"
   },
   "devDependencies": {
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^14.5.2"
   },
   "browserslist": {
     "production": [">0.2%", "not dead", "not op_mini all"],

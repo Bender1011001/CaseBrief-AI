@@ -25,7 +25,7 @@ Follow the general prerequisites in [SETUP.md](SETUP.md). Specific to frontend:
 
 2. Configure Firebase in [`src/firebase.js`](../frontend/src/firebase.js):
    - Obtain config from Firebase Console (Project Settings > General > Config).
-   - Replace the placeholder:
+   - Replace the placeholder with env vars (see SETUP.md).
      ```javascript
      import { initializeApp } from 'firebase/app';
      import { getAuth } from 'firebase/auth';
@@ -214,4 +214,4 @@ Firestore integration provides live updates:
 
 For advanced real-time (e.g., collaborative editing in V2), consider Firestore's multi-user listeners.
 
-This architecture ensures a responsive, secure frontend that scales with user growth. For testing, see [TESTING.md](TESTING.md).
+This architecture ensures a responsive, secure frontend that scales with user growth. For testing, see [TESTING.md](docs/TESTING.md). E2E testing planned with Cypress for full workflows.

@@ -55,9 +55,9 @@ The backend provides two primary endpoints for the core workflow. All endpoints 
   - Error responses: 404 (doc not found or not completed), 403 (unauthorized access).
 
 Additional utility endpoints (for health checks or future expansion):
-- GET /health: Returns `{"status": "healthy"}` (no auth required).
+- GET /health: Returns `{"status": "healthy"}` (no auth required). Added in main.py for Cloud Run health checks.
 
-CORS is configured in FastAPI to allow requests from the frontend origin (localhost:3000 in dev, production domain in deploy).
+CORS is configured in FastAPI to allow requests from the frontend origin (localhost:3000 in dev, production domain in deploy) using CORSMiddleware with allow_origins, credentials, methods, headers.
 
 ## Code Walkthrough
 
@@ -139,11 +139,11 @@ Error handling uses FastAPI's exception handlers for 4xx/5xx responses, logging 
 
 - **Environment Variables** (in `.env`):
   - `PROJECT_ID`: Your GCP project ID (required).
-  - `BUCKET_NAME`: Cloud Storage bucket for PDFs/OCR (default: `{PROJECT_ID}-casebrief`).
-  - `AI_MODEL`: Gemini model name (default: `gemini-1.5-pro`).
-  - `MAX_FILE_SIZE`: Upload limit in MB (default: 10).
-  - `TEXT_THRESHOLD`: Min chars for PyMuPDF vs. OCR (default: 100).
+  - `BUCKET_NAME`: Cloud Storage bucket for PDFs/OCR (default: casebrief-ai-uploads).
+  - `GEMINI_MODEL`: Gemini model name (default: gemini-1.5-pro).
+  - `MAX_FILE_SIZE`: Upload limit in MB (hardcoded 10; env for future).
+  - `TEXT_THRESHOLD`: Min chars for PyMuPDF vs. OCR (hardcoded 500; env for future).
 
 - **Service Account JSON**: Required for GCP clients. Download from IAM & Admin > Service Accounts in GCP Console. Assign roles: `roles/datastore.user`, `roles/storage.admin`, `roles/vision.user`, `roles/aiplatform.user`. Set `GOOGLE_APPLICATION_CREDENTIALS` to the JSON path.
 
-For production, use secret mounting in Cloud Run instead of local JSON files. Refer to [DEPLOYMENT.md](DEPLOYMENT.md) for details.
+For production, use secret mounting in Cloud Run instead of local JSON files. Refer to [DEPLOYMENT.md](docs/DEPLOYMENT.md) for details, including gcloud secrets create and --set-secrets.

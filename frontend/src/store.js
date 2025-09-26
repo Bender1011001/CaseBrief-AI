@@ -19,7 +19,7 @@ export const useAuthStore = create((set, get) => ({
     });
   },
   subscribeToDocs: (userId) => {
-    const q = query(collection(db, `users/${userId}/documents`));
+    const q = query(collection(db, 'users', userId, 'documents'));
     return onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       set({ documents: docs });

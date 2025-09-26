@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuthStore } from '../store';
 import { exportDoc } from '../api';
@@ -35,6 +35,17 @@ export default function Editor({ docId, onClose }) {
       exportDoc(token, docId);
     }
   };
+
+  const handleSave = async () => {
+    if (!user || !docId) return;
+    try {
+      const docRef = doc(db, `users/${user.uid}/documents`, docId);
+      await setDoc(docRef, { brief }, { merge: true });
+      alert('Brief saved to Firestore!');
+    } catch (error) {
+      alert('Error saving brief: ' + error.message);
+    }
+  };
   if (loading) return <p>Loading brief...</p>;
   return (
     <div style={{ marginTop: '20px', padding: '20px', border: '1px solid #ccc' }}>
@@ -57,7 +68,8 @@ export default function Editor({ docId, onClose }) {
           <p>PDF preview placeholder - to be implemented in future versions.</p>
         </div>
       </div>
-      <button onClick={handleExport} style={{ marginTop: '10px' }}>Download as .docx</button>
+      <button onClick={handleExport} style={{ marginTop: '10px', marginRight: '10px' }}>Download as .docx</button>
+      <button onClick={handleSave} style={{ marginTop: '10px' }}>Save</button>
     </div>
   );
 }

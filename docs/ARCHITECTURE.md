@@ -67,7 +67,7 @@ graph TD
 - **API Integration** ([`api.js`](../frontend/src/api.js)): Axios wrapper for backend calls, includes auth token in headers.
 
 ### Data Flow and Storage
-- **Firestore Structure**: Documents organized as `/users/{userId}/documents/{docId}` with fields: `metadata` (title, status: 'uploading'|'processing'|'completed'|'error', createdAt), `brief` (JSON object with sections: facts, analysis, synthesis, etc.).
+- **Firestore Structure**: Documents organized as `/users/{userId}/documents/{docId}` with fields: `metadata` (title, status: 'uploading'|'processing'|'completed'|'error', createdAt), `brief` (string with structured sections: Facts, Procedural History, Issues, Holding, Reasoning, Conclusion; parsed via regex in export).
 - **Real-time Updates**: Frontend subscribes to collection snapshots; backend updates status during processing (e.g., after extraction, after AI calls).
 - **File Handling**: PDFs uploaded as multipart/form-data to backend, stored temporarily for OCR if needed, then optionally deleted post-processing. Exports streamed directly without persistent DOCX storage.
 - **Error Handling**: Failures (e.g., AI quota exceeded) update status to 'error' in Firestore, with message for UI display.

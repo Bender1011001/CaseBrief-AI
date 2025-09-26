@@ -11,6 +11,7 @@ Firebase Auth issues often stem from misconfiguration or token problems.
   - Resolution: Verify credentials; in Firebase Console > Authentication > Sign-in method, enable Email/Password. Reset password via "Forgot Password" link if needed.
   
 - **"Token expired" or 401 Unauthorized on API calls**:
+  - Resolution: ... For refresh, see Firebase docs: https://firebase.google.com/docs/auth/web/manage-users#refresh_the_id_token.
   - Cause: Firebase ID token expired (1 hour default); not refreshed in frontend.
   - Resolution: In browser, clear cache and relogin. Check [`store.js`](../frontend/src/store.js) for `getIdToken()` calls; ensure Zustand store refreshes on expiry. For production, implement silent refresh with `onIdTokenChanged`.
 
@@ -122,4 +123,4 @@ Region tip: Use us-central1 for all services to minimize latency.
   - Cause: Inefficient prompts or large PDFs.
   - Resolution: Monitor in Cloud Monitoring > Dashboards. Optimize Gemini prompts in backend. Use cost explorer for breakdowns (Vertex ~70% of costs).
 
-For advanced debugging, enable debug logging in Firebase (`firebase.firestore().settings({ experimentalForceLongPolling: true })`) or GCP (set log levels). Community support via GitHub issues.
+For advanced debugging, enable debug logging in Firebase (`firebase.firestore().settings({ experimentalForceLongPolling: true })`) or GCP (set log levels). Community support via GitHub issues at https://github.com/your-repo/casebrief-ai/issues.
